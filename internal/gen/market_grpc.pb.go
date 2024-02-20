@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -19,14 +20,14 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Market_SayHello_FullMethodName = "/Market/SayHello"
+	Market_RegisterPeerNode_FullMethodName = "/market.Market/RegisterPeerNode"
 )
 
 // MarketClient is the client API for Market service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MarketClient interface {
-	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error)
+	RegisterPeerNode(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RegisterPeerReply, error)
 }
 
 type marketClient struct {
@@ -37,9 +38,9 @@ func NewMarketClient(cc grpc.ClientConnInterface) MarketClient {
 	return &marketClient{cc}
 }
 
-func (c *marketClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
-	out := new(HelloReply)
-	err := c.cc.Invoke(ctx, Market_SayHello_FullMethodName, in, out, opts...)
+func (c *marketClient) RegisterPeerNode(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RegisterPeerReply, error) {
+	out := new(RegisterPeerReply)
+	err := c.cc.Invoke(ctx, Market_RegisterPeerNode_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +51,7 @@ func (c *marketClient) SayHello(ctx context.Context, in *HelloRequest, opts ...g
 // All implementations must embed UnimplementedMarketServer
 // for forward compatibility
 type MarketServer interface {
-	SayHello(context.Context, *HelloRequest) (*HelloReply, error)
+	RegisterPeerNode(context.Context, *emptypb.Empty) (*RegisterPeerReply, error)
 	mustEmbedUnimplementedMarketServer()
 }
 
@@ -58,8 +59,8 @@ type MarketServer interface {
 type UnimplementedMarketServer struct {
 }
 
-func (UnimplementedMarketServer) SayHello(context.Context, *HelloRequest) (*HelloReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SayHello not implemented")
+func (UnimplementedMarketServer) RegisterPeerNode(context.Context, *emptypb.Empty) (*RegisterPeerReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterPeerNode not implemented")
 }
 func (UnimplementedMarketServer) mustEmbedUnimplementedMarketServer() {}
 
@@ -74,20 +75,20 @@ func RegisterMarketServer(s grpc.ServiceRegistrar, srv MarketServer) {
 	s.RegisterService(&Market_ServiceDesc, srv)
 }
 
-func _Market_SayHello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HelloRequest)
+func _Market_RegisterPeerNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MarketServer).SayHello(ctx, in)
+		return srv.(MarketServer).RegisterPeerNode(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Market_SayHello_FullMethodName,
+		FullMethod: Market_RegisterPeerNode_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MarketServer).SayHello(ctx, req.(*HelloRequest))
+		return srv.(MarketServer).RegisterPeerNode(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -96,12 +97,12 @@ func _Market_SayHello_Handler(srv interface{}, ctx context.Context, dec func(int
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Market_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "Market",
+	ServiceName: "market.Market",
 	HandlerType: (*MarketServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SayHello",
-			Handler:    _Market_SayHello_Handler,
+			MethodName: "RegisterPeerNode",
+			Handler:    _Market_RegisterPeerNode_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,16 +1,15 @@
 syntax = "proto3";
+import "google/protobuf/empty.proto";
 
 option go_package = "github.com/reaovyd/orcanet-market-go/internal/gen/proto";
 
+package market;
+
 service Market {
-  rpc SayHello (HelloRequest) returns (HelloReply);
+  rpc RegisterPeerNode (google.protobuf.Empty) returns (RegisterPeerReply);
 }
 
-message HelloRequest {
-  string name = 1;
-}
-
-message HelloReply {
-  string message = 1;
+message RegisterPeerReply {
+  string peer_id = 1;
 }
 
