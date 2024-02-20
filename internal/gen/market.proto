@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option go_package = "github.com/reaovyd/orcanet-market-go/internal/gen/proto";
 
-service Greeter {
+service Market {
   rpc SayHello (HelloRequest) returns (HelloReply);
 }
 

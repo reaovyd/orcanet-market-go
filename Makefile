@@ -2,9 +2,8 @@ GO := go
 BIN := bin
 BIN_SRC_DIR := cmd
 
-# TODO add rule for building the proto file
-.PHONY: all clean
-all: $(BIN)/server $(BIN)/client
+.PHONY: all clean proto clean_proto
+all: proto $(BIN)/server $(BIN)/client
 
 $(BIN)/server: $(BIN_SRC_DIR)/server/server.go
 	mkdir -p $(BIN)
@@ -13,6 +12,12 @@ $(BIN)/server: $(BIN_SRC_DIR)/server/server.go
 $(BIN)/client: $(BIN_SRC_DIR)/client/client.go
 	mkdir -p $(BIN)
 	$(GO) build -o $@ $<
+
+proto:
+	./scripts/build.sh
+
+clean_proto:
+	./scripts/clean_proto.sh
 
 clean:
 	rm -r $(BIN)
