@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
+	peer "github.com/reaovyd/orcanet-market-go/internal"
 	proto "github.com/reaovyd/orcanet-market-go/internal/gen"
-	"google.golang.org/grpc/peer"
+	google_peer "google.golang.org/grpc/peer"
 )
 
 const (
@@ -37,27 +38,68 @@ func NewMarketServer(keepalive_timeout time.Duration) MarketServer {
 	}
 }
 
-func (s *MarketServer) AddNewPeer(peer_id string, ip string) {
-	s.peer_ip_map.Store(peer_id, ip)
-}
-
-func (s *MarketServer) DeleteExistingPeer(peer_id string) {
-	s.peer_ip_map.Delete(peer_id)
-}
-
-func (s *MarketServer) GetPeer(peer_id string) any {
-	value, ok := s.peer_ip_map.Load(peer_id)
-	if !ok {
-		return nil
+func (s *MarketServer) AddNewPeer(peer_id, ip string) error {
+	_, ok := s.peer_ip_map.Load(peer_id)
+	if ok {
+		return MarketServerError("Peer already exists and is connected!")
 	}
-	return value
+	s.peer_ip_map.Store(peer_id, peer.New(peer_id, ip))
+	return nil
+}
+
+func (s *MarketServer) getPeerNode(peer_id string) (*peer.PeerNode, error) {
+	val, ok := s.peer_ip_map.Load(peer_id)
+	if !ok {
+		return nil, MarketServerError("Peer not found in map")
+	}
+	return val.(*peer.PeerNode), nil
+}
+
+func (s *MarketServer) UpdateExistingPeerIp(peer_id, ip string) error {
+	val, err := s.getPeerNode(peer_id)
+	if err != nil {
+		return err
+	}
+	val.SetPeerIP(ip)
+	return nil
+}
+
+func (s *MarketServer) UpdateExistingPeerProducerPort(peer_id, producer_port string) error {
+	val, err := s.getPeerNode(peer_id)
+	if err != nil {
+		return err
+	}
+	val.SetProducerPort(producer_port)
+	return nil
+}
+
+func (s *MarketServer) UpdateExistingPeerConsumerPort(peer_id, consumer_port string) error {
+	val, err := s.getPeerNode(peer_id)
+	if err != nil {
+		return err
+	}
+	val.SetConsumerPort(consumer_port)
+	return nil
+}
+
+func (s *MarketServer) DeleteExistingPeer(peer_id string) error {
+	val, err := s.getPeerNode(peer_id)
+	if err != nil {
+		return err
+	}
+	owned_files := val.GetOwnedFiles()
+	for _, file := range owned_files {
+		s.file_peer_map.removePeerFromFile(file, peer_id)
+	}
+	s.peer_ip_map.Delete(peer_id)
+	return nil
 }
 
 // Runs on different goroutines; need synchronization on map
-// Might need something for rejoins since disconnects would immediately invalidate
+// FIXIT: Might need something for rejoins since disconnects would immediately invalidate
 // anything the peer uploaded
 func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error {
-	p, ok := peer.FromContext(stream.Context())
+	p, ok := google_peer.FromContext(stream.Context())
 	if ok {
 		ip := p.Addr.String()
 		peer_id, err := generatePeerNodeID(p.Addr.String())
@@ -95,7 +137,7 @@ func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error 
 }
 
 func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
-	ctx, ok := peer.FromContext(stream.Context())
+	ctx, ok := google_peer.FromContext(stream.Context())
 	if ok {
 		ip := ctx.Addr.String()
 		// Initially retrieves a request and ignores the initial chunk
@@ -105,10 +147,11 @@ func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
 			return err
 		}
 		peer_id := req.GetPeerId()
-		expected_ip := s.GetPeer(peer_id)
-		if expected_ip == nil {
-			return MarketServerError(fmt.Sprintf("The peer_id %s cannot be found!", peer_id))
+		node, err := s.getPeerNode(peer_id)
+		if err != nil {
+			return err
 		}
+		expected_ip := node.GetPeerIP()
 		if ip != expected_ip {
 			return MarketServerError(fmt.Sprintf("Peer provided ID %s and had IP %s, but saved and expected peer IP is %s", peer_id, ip, expected_ip))
 		}
@@ -150,6 +193,7 @@ func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
 
 func (s *MarketServer) DiscoverPeers(ctx context.Context, req *proto.DiscoverPeersRequest) (*proto.DiscoverPeersReply, error) {
 	filehash := req.GetFilehash()
+	// NOTE: Maybe should delete peers that are no longer connected?
 	peers, err := s.file_peer_map.getPeersByHash(filehash)
 	if err != nil {
 		return nil, err

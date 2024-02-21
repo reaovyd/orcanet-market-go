@@ -6,6 +6,10 @@ type hashset map[string]bool
 
 // remove peer on each user request on the file?
 // 1. if peerid in list exists in peer_ip_map, keep. otherwise, delete
+//
+// How about we storee the peerid instead of the ip?
+// This way we can just return the list of peerids and the client can
+// make another gRPC request to get the peerid's ip and producer port
 type filePeerMap struct {
 	fpeer_map map[string]hashset
 	lock      *sync.Mutex
@@ -56,7 +60,8 @@ func (fpm *filePeerMap) addFileHash(filehash string, peer string) error {
 	return nil
 }
 
-func (fpm *filePeerMap) removePeerByHash(filehash string, peer string) (string, error) {
+// Typically called when a peer disconnects
+func (fpm *filePeerMap) removePeerFromFile(filehash string, peer string) (string, error) {
 	if fpm == nil {
 		return "", filePeerMapError("Object found to be null")
 	}
