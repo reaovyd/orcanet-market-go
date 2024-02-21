@@ -1,5 +1,4 @@
 syntax = "proto3";
-import "google/protobuf/empty.proto";
 
 option go_package = "github.com/reaovyd/orcanet-market-go/internal/gen/proto";
 
@@ -8,7 +7,7 @@ package market;
 service Market {
   rpc JoinNetwork (stream KeepAliveRequest) returns (stream KeepAliveResponse);
   rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
-  rpc DiscoverPeers (google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc DiscoverPeers (DiscoverPeersRequest) returns (DiscoverPeersReply);
 }
 
 message JoinNetworkReply {
@@ -30,4 +29,12 @@ message UploadFileRequest {
 
 message UploadFileResponse {
   string filehash = 1;
+}
+
+message DiscoverPeersRequest {
+  string filehash = 1;
+}
+
+message DiscoverPeersReply {
+  repeated string peers = 1;
 }

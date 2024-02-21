@@ -11,7 +11,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -31,7 +30,7 @@ const (
 type MarketClient interface {
 	JoinNetwork(ctx context.Context, opts ...grpc.CallOption) (Market_JoinNetworkClient, error)
 	UploadFile(ctx context.Context, opts ...grpc.CallOption) (Market_UploadFileClient, error)
-	DiscoverPeers(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DiscoverPeers(ctx context.Context, in *DiscoverPeersRequest, opts ...grpc.CallOption) (*DiscoverPeersReply, error)
 }
 
 type marketClient struct {
@@ -107,8 +106,8 @@ func (x *marketUploadFileClient) CloseAndRecv() (*UploadFileResponse, error) {
 	return m, nil
 }
 
-func (c *marketClient) DiscoverPeers(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+func (c *marketClient) DiscoverPeers(ctx context.Context, in *DiscoverPeersRequest, opts ...grpc.CallOption) (*DiscoverPeersReply, error) {
+	out := new(DiscoverPeersReply)
 	err := c.cc.Invoke(ctx, Market_DiscoverPeers_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -122,7 +121,7 @@ func (c *marketClient) DiscoverPeers(ctx context.Context, in *emptypb.Empty, opt
 type MarketServer interface {
 	JoinNetwork(Market_JoinNetworkServer) error
 	UploadFile(Market_UploadFileServer) error
-	DiscoverPeers(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
+	DiscoverPeers(context.Context, *DiscoverPeersRequest) (*DiscoverPeersReply, error)
 	mustEmbedUnimplementedMarketServer()
 }
 
@@ -136,7 +135,7 @@ func (UnimplementedMarketServer) JoinNetwork(Market_JoinNetworkServer) error {
 func (UnimplementedMarketServer) UploadFile(Market_UploadFileServer) error {
 	return status.Errorf(codes.Unimplemented, "method UploadFile not implemented")
 }
-func (UnimplementedMarketServer) DiscoverPeers(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+func (UnimplementedMarketServer) DiscoverPeers(context.Context, *DiscoverPeersRequest) (*DiscoverPeersReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DiscoverPeers not implemented")
 }
 func (UnimplementedMarketServer) mustEmbedUnimplementedMarketServer() {}
@@ -205,7 +204,7 @@ func (x *marketUploadFileServer) Recv() (*UploadFileRequest, error) {
 }
 
 func _Market_DiscoverPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(DiscoverPeersRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -217,7 +216,7 @@ func _Market_DiscoverPeers_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: Market_DiscoverPeers_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MarketServer).DiscoverPeers(ctx, req.(*emptypb.Empty))
+		return srv.(MarketServer).DiscoverPeers(ctx, req.(*DiscoverPeersRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

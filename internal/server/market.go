@@ -6,21 +6,24 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"log"
 	"net"
-	"slices"
 	"sync"
 	"time"
 
 	proto "github.com/reaovyd/orcanet-market-go/internal/gen"
 	"google.golang.org/grpc/peer"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+const (
+	CHUNK_SIZE = 4096
+)
+
+type hashset map[string]bool
 
 // remove peer on each user request on the file?
 // 1. if peerid in list exists in peer_ip_map, keep. otherwise, delete
 type filePeerMap struct {
-	fpeer_map map[string][]string
+	fpeer_map map[string]hashset
 	lock      *sync.Mutex
 }
 
@@ -32,39 +35,55 @@ func (err filePeerMapError) Error() string {
 
 func newFilePeerMap() filePeerMap {
 	return filePeerMap{
-		fpeer_map: map[string][]string{},
+		fpeer_map: map[string]hashset{},
 		lock:      &sync.Mutex{},
 	}
 }
 
-func (fpm *filePeerMap) addFileHash(filehash string, peer string) {
+func (fpm *filePeerMap) getPeersByHash(filehash string) ([]string, error) {
+	if fpm == nil {
+		return nil, filePeerMapError("Object found to be null")
+	}
+	fpm.lock.Lock()
+	set, ok := fpm.fpeer_map[filehash]
+	if !ok {
+		fpm.lock.Unlock()
+		return nil, filePeerMapError("Could not get peers by the provided filehash")
+	}
+	peers := make([]string, len(set))
+	i := 0
+	for peer := range set {
+		peers[i] = peer
+	}
+	fpm.lock.Unlock()
+	return peers, nil
+}
+
+func (fpm *filePeerMap) addFileHash(filehash string, peer string) error {
+	if fpm == nil {
+		return filePeerMapError("Object found to be null")
+	}
 	fpm.lock.Lock()
 	_, ok := fpm.fpeer_map[filehash]
 	if !ok {
-		fpm.fpeer_map[filehash] = make([]string, 0)
+		fpm.fpeer_map[filehash] = make(hashset)
 	}
-	fpm.fpeer_map[filehash] = append(fpm.fpeer_map[filehash], peer)
+	fpm.fpeer_map[filehash][peer] = true
 	fpm.lock.Unlock()
+	return nil
 }
 
 func (fpm *filePeerMap) removePeerByHash(filehash string, peer string) (string, error) {
+	if fpm == nil {
+		return "", filePeerMapError("Object found to be null")
+	}
 	fpm.lock.Lock()
-	lst, ok := fpm.fpeer_map[filehash]
+	_, ok := fpm.fpeer_map[filehash]
 	if !ok {
 		fpm.lock.Unlock()
 		return "", filePeerMapError("Could not find the associated filehash")
 	}
-	rem := -1
-	for i := range lst {
-		if lst[i] == peer {
-			i = rem
-		}
-	}
-	if rem != -1 {
-		fpm.fpeer_map[filehash] = slices.Delete(lst, rem, rem+1)
-		fpm.lock.Unlock()
-		return peer, nil
-	}
+	delete(fpm.fpeer_map[filehash], peer)
 	fpm.lock.Unlock()
 
 	return peer, filePeerMapError("Could not find the associated peer")
@@ -86,7 +105,6 @@ func NewMarketServer(keepalive_timeout time.Duration) MarketServer {
 		file_peer_map:     &fpm,
 		keepalive_timeout: keepalive_timeout,
 		heartbeat:         keepalive_timeout / 2,
-		hasher:            sha256.New(),
 	}
 }
 
@@ -163,7 +181,10 @@ func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
 		if ip != expected_ip {
 			return MarketServerError(fmt.Sprintf("Peer provided ID %s and had IP %s, but saved and expected peer IP is %s", peer_id, ip, expected_ip))
 		}
-		var chunk []byte = nil
+		// TODO: Problem here is that contents may not necessarily be 4096 bytes
+		// if someone else uses some other client that we didn't implement
+		// so prob need to change that in here
+		var filehash []byte
 		for {
 			req, err := stream.Recv()
 			if err != nil {
@@ -172,16 +193,13 @@ func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
 				}
 				return err
 			} else {
-				if chunk == nil {
-					chunk = req.GetChunk()
-				} else {
-					new_bytes := req.GetChunk()
-					s.hasher.Write(new_bytes)
-					bs := s.hasher.Sum(nil)
-					chunk = append(chunk, bs...)
-				}
-				s.hasher.Write(chunk)
-				chunk = s.hasher.Sum(nil)
+				hasher := sha256.New()
+				hasher.Write(req.GetChunk())
+				filehash = append(filehash, hasher.Sum(nil)...)
+				hasher.Reset()
+				hasher.Write(filehash)
+				filehash = hasher.Sum(nil)
+				hasher.Reset()
 			}
 		}
 		producer_port := req.GetProducerPort()
@@ -190,19 +208,22 @@ func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
 			return err
 		}
 		producer_ip := net.JoinHostPort(host, producer_port)
-		filehash := fmt.Sprintf("%x", chunk)
-		s.file_peer_map.addFileHash(filehash, producer_ip)
+		filehash_out := fmt.Sprintf("%x", filehash)
+		s.file_peer_map.addFileHash(filehash_out, producer_ip)
 		return stream.SendAndClose(&proto.UploadFileResponse{
-			Filehash: filehash,
+			Filehash: filehash_out,
 		})
 	}
 	return MarketServerError("Could not retrieve context from peer!")
 }
 
-func (s *MarketServer) DiscoverPeers(ctx context.Context, in *emptypb.Empty) (*emptypb.Empty, error) {
-	s.peer_ip_map.Range(func(key, value any) bool {
-		log.Printf("key %v: %v\n", key, value)
-		return true
-	})
-	return &emptypb.Empty{}, nil
+func (s *MarketServer) DiscoverPeers(ctx context.Context, req *proto.DiscoverPeersRequest) (*proto.DiscoverPeersReply, error) {
+	filehash := req.GetFilehash()
+	peers, err := s.file_peer_map.getPeersByHash(filehash)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.DiscoverPeersReply{
+		Peers: peers,
+	}, nil
 }
