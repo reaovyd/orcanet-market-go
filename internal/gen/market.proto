@@ -10,11 +10,20 @@ service Market {
   rpc DiscoverPeers (DiscoverPeersRequest) returns (DiscoverPeersReply);
 }
 
-message JoinNetworkReply {
-  string peer_id = 1;
+enum JoinRequestType {
+  JOINER = 0;
+  REJOINER = 1;
 }
 
-message KeepAliveRequest {}
+message KeepAliveRequest {
+  // Initial join requests do not have to provide anything
+  // They will be defined as producers when they upload a file
+  string peer_id = 1;
+  // Producer MUST also provide its producer_port if it was a producer.
+  // If it is a downloader for now, then you MUST provide <NIL>.
+  string producer_port = 2;
+  JoinRequestType join_request_type = 3;
+}
 message KeepAliveResponse {
   string peer_id = 1;
 }
@@ -24,6 +33,9 @@ message UploadFileRequest {
   bytes chunk = 2;
   // uploaders uploading to market are clearly seeders; this port represents that
   // seeder's server that allows downloaders to download the actual file contents from
+  // 
+  // If said peer never uploaded before, then it will be assigned this producer_port
+  // that it provides. Then it will be assigned the role of a seeder/producer.
   string producer_port = 3; 
 }
 
@@ -36,5 +48,5 @@ message DiscoverPeersRequest {
 }
 
 message DiscoverPeersReply {
-  repeated string peers = 1;
+  repeated string peer_ids = 1;
 }

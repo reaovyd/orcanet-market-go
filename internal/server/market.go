@@ -4,9 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"hash"
 	"io"
-	"net"
 	"sync"
 	"time"
 
@@ -23,7 +21,6 @@ type MarketServer struct {
 	proto.UnimplementedMarketServer
 	peer_ip_map       *sync.Map
 	file_peer_map     *filePeerMap
-	hasher            hash.Hash
 	keepalive_timeout time.Duration
 	heartbeat         time.Duration
 }
@@ -82,17 +79,20 @@ func (s *MarketServer) UpdateExistingPeerConsumerPort(peer_id, consumer_port str
 	return nil
 }
 
-func (s *MarketServer) DeleteExistingPeer(peer_id string) error {
-	val, err := s.getPeerNode(peer_id)
-	if err != nil {
-		return err
-	}
-	owned_files := val.GetOwnedFiles()
-	for _, file := range owned_files {
-		s.file_peer_map.removePeerFromFile(file, peer_id)
-	}
+func (s *MarketServer) DeleteExistingPeer(peer_id string) {
+	// NOTE: Should we really even remove the peers from the owned files inside file_peer_map?
+	// Probably not since the peer can just rejoin and not have to reupload the files it had stored.
+	// The provided producer_port would just need to be valid.
+	//
+	// val, err := s.getPeerNode(peer_id)
+	// if err != nil {
+	// 	return err
+	// }
+	// owned_files := val.GetOwnedFiles()
+	// for _, file := range owned_files {
+	// 	s.file_peer_map.removePeerFromFile(file, peer_id)
+	// }
 	s.peer_ip_map.Delete(peer_id)
-	return nil
 }
 
 // Runs on different goroutines; need synchronization on map
@@ -106,7 +106,6 @@ func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error 
 		if err != nil {
 			return MarketServerError(fmt.Sprint("Failed to join the market server: ", err))
 		}
-		s.AddNewPeer(peer_id, ip)
 
 		ticker := time.NewTicker(s.heartbeat)
 		defer ticker.Stop()
@@ -116,9 +115,9 @@ func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error 
 
 		// Initial Send
 		if err := stream.Send(resp); err != nil {
-			s.DeleteExistingPeer(peer_id)
 			return err
 		}
+		s.AddNewPeer(peer_id, ip)
 		// It'll still keep sending peer_id and peer node can choose to ignore it
 		for {
 			select {
@@ -176,14 +175,19 @@ func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
 				hasher.Reset()
 			}
 		}
-		producer_port := req.GetProducerPort()
-		host, _, err := net.SplitHostPort(ip)
-		if err != nil {
-			return err
-		}
-		producer_ip := net.JoinHostPort(host, producer_port)
 		filehash_out := fmt.Sprintf("%x", filehash)
-		s.file_peer_map.addFileHash(filehash_out, producer_ip)
+		producer_port := req.GetProducerPort()
+		node.SetProducerPort(producer_port)
+		s.file_peer_map.addFileHash(filehash_out, peer_id)
+		node.AddFile(filehash_out)
+		// producer_port := req.GetProducerPort()
+		// host, _, err := net.SplitHostPort(ip)
+		// if err != nil {
+		// 	return err
+		// }
+		// producer_ip := net.JoinHostPort(host, producer_port)
+		// filehash_out := fmt.Sprintf("%x", filehash)
+		// s.file_peer_map.addFileHash(filehash_out, producer_ip)
 		return stream.SendAndClose(&proto.UploadFileResponse{
 			Filehash: filehash_out,
 		})
@@ -193,12 +197,18 @@ func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
 
 func (s *MarketServer) DiscoverPeers(ctx context.Context, req *proto.DiscoverPeersRequest) (*proto.DiscoverPeersReply, error) {
 	filehash := req.GetFilehash()
-	// NOTE: Maybe should delete peers that are no longer connected?
-	peers, err := s.file_peer_map.getPeersByHash(filehash)
+	peer_id_list, err := s.file_peer_map.getPeersByHash(filehash)
 	if err != nil {
 		return nil, err
 	}
+	peers := make([]string, len(peer_id_list))
+	for _, peer_id := range peer_id_list {
+		// NOTE: Filtering for peers that are still connected
+		if val, err := s.getPeerNode(peer_id); val != nil && err == nil {
+			peers = append(peers, val.GetPeerHostProducer())
+		}
+	}
 	return &proto.DiscoverPeersReply{
-		Peers: peers,
+		PeerIds: peers,
 	}, nil
 }

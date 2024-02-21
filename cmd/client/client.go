@@ -88,7 +88,7 @@ func main() {
 					log.Fatal(err)
 				} else {
 					log.Println(filehash)
-					log.Println(resp.Peers)
+					log.Println(resp.GetPeerIds())
 				}
 			}
 			break
@@ -103,4 +103,5 @@ func main() {
 			log.Fatalf(uploader.CloseSend().Error())
 		}
 	}
+	select {}
 }
