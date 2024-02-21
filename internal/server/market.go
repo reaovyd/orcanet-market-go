@@ -55,12 +55,20 @@ func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error 
 
 		ticker := time.NewTicker(s.heartbeat)
 		defer ticker.Stop()
+		resp := &proto.KeepAliveResponse{
+			PeerId: peer_id,
+		}
+
+		// Initial Send
+		if err := stream.Send(resp); err != nil {
+			s.DeleteExistingPeer(peer_id)
+			return err
+		}
+		// It'll still keep sending peer_id and peer node can choose to ignore it
 		for {
 			select {
 			case <-ticker.C:
-				if err := stream.Send(&proto.KeepAliveResponse{
-					PeerId: peer_id,
-				}); err != nil {
+				if err := stream.Send(resp); err != nil {
 					s.DeleteExistingPeer(peer_id)
 					return err
 				}

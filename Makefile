@@ -1,17 +1,25 @@
 GO := go
 BIN := bin
 BIN_SRC_DIR := cmd
+MAIN_SERVER_LOC := $(BIN_SRC_DIR)/server/server.go
+MAIN_CLIENT_LOC := $(BIN_SRC_DIR)/client/client.go
+INTERNAL := internal
 
-.PHONY: all clean proto clean_proto
-all: proto $(BIN)/server $(BIN)/client
+.PHONY: all clean proto clean_proto server client
+all: proto $(BIN)/server $(BIN)/client 
 
-$(BIN)/server: $(BIN_SRC_DIR)/server/server.go
+server: $(BIN)/server
+
+client: $(BIN)/client
+
+$(BIN):
 	mkdir -p $(BIN)
-	$(GO) build -o $@ $<
 
-$(BIN)/client: $(BIN_SRC_DIR)/client/client.go
-	mkdir -p $(BIN)
-	$(GO) build -o $@ $<
+$(BIN)/server: $(BIN) $(MAIN_SERVER_LOC)
+	$(GO) build -o $@ $(MAIN_SERVER_LOC)
+
+$(BIN)/client: $(BIN) $(MAIN_CLIENT_LOC)
+	$(GO) build -o $@ $(MAIN_CLIENT_LOC)
 
 proto:
 	./scripts/build.sh
