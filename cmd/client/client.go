@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"time"
 
 	proto "github.com/reaovyd/orcanet-market-go/internal/gen"
 	"google.golang.org/grpc"
@@ -25,18 +24,13 @@ func main() {
 	c := proto.NewMarketClient(conn)
 
 	// way to keep infinite joinnetwork stream for now
+	// context.WithTimeout sets deadline timeout
 	ctx := context.Background()
 
 	r, err := c.JoinNetwork(ctx)
 	if err != nil {
 		log.Fatalf("could not make a request to register self: %v", err)
 	}
-	go func() {
-		for {
-			time.Sleep(2 * time.Second)
-			r.Send(&proto.KeepAliveRequest{})
-		}
-	}()
 	for {
 		msg, err := r.Recv()
 		if err == io.EOF {
