@@ -69,5 +69,5 @@ func (fpm *filePeerMap) removePeerByHash(filehash string, peer string) (string, 
 	delete(fpm.fpeer_map[filehash], peer)
 	fpm.lock.Unlock()
 
-	return peer, filePeerMapError("Could not find the associated peer")
+	return peer, nil
 }
