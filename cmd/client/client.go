@@ -14,11 +14,17 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// NOTE: This isn't a correct client at all. It is just used as a test on the gRPC methods for the server.
+// The client code is supposed to essentially be the peer node anyways, but only using this to test out
+// the market server.
+
 const YOUR_FILE_HERE = "go.sum"
 
 var (
+	id_hash       = flag.String("id_hash", "<NIL>", "the id hash of the peer")
 	addr          = flag.String("addr", "localhost:6699", "the address to connect to")
-	producer_port = flag.String("producer_port", "8999", "the producer port to listen on")
+	producer_port = flag.String("producer_port", "8899", "the producer port to listen on")
+	in_file       = flag.String("in_file", "go.sum", "the file to upload")
 )
 
 func main() {
@@ -38,6 +44,20 @@ func main() {
 		ctx := context.Background()
 
 		r, err := c.JoinNetwork(ctx)
+		if err != nil {
+			log.Fatalf("could not make a request to register self: %v", err)
+		}
+		if *id_hash != "<NIL>" {
+			err = r.Send(&proto.KeepAliveRequest{
+				PeerId:          *id_hash,
+				ProducerPort:    *producer_port,
+				JoinRequestType: proto.JoinRequestType_REJOINER,
+			})
+		} else {
+			err = r.Send(&proto.KeepAliveRequest{
+				JoinRequestType: proto.JoinRequestType_JOINER,
+			})
+		}
 		if err != nil {
 			log.Fatalf("could not make a request to register self: %v", err)
 		}
@@ -68,7 +88,7 @@ func main() {
 		PeerId:       peer_id,
 		ProducerPort: *producer_port,
 	})
-	file, err := os.Open(YOUR_FILE_HERE)
+	file, err := os.Open(*in_file)
 	if err != nil {
 		log.Fatal(err)
 	}
