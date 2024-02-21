@@ -1,6 +1,9 @@
 package server
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 type hashset map[string]bool
 
@@ -34,6 +37,7 @@ func (fpm *filePeerMap) getPeersByHash(filehash string) ([]string, error) {
 	}
 	fpm.lock.Lock()
 	set, ok := fpm.fpeer_map[filehash]
+	fmt.Println(set)
 	fpm.lock.Unlock()
 	if !ok {
 		return nil, filePeerMapError("Could not get peers by the provided filehash")
@@ -42,6 +46,7 @@ func (fpm *filePeerMap) getPeersByHash(filehash string) ([]string, error) {
 	i := 0
 	for peer := range set {
 		peers[i] = peer
+		i += 1
 	}
 	return peers, nil
 }

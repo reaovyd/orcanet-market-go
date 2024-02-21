@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"net"
 	"sync"
 	"time"
 
@@ -35,12 +36,14 @@ func NewMarketServer(keepalive_timeout time.Duration) MarketServer {
 	}
 }
 
-func (s *MarketServer) AddNewPeer(peer_id, ip string) error {
+func (s *MarketServer) AddNewPeer(peer_id, ip, consumer_port string) error {
 	_, ok := s.peer_ip_map.Load(peer_id)
 	if ok {
 		return MarketServerError("Peer already exists and is connected!")
 	}
-	s.peer_ip_map.Store(peer_id, peer.New(peer_id, ip))
+	peer := peer.New(peer_id, ip)
+	peer.SetConsumerPort(consumer_port)
+	s.peer_ip_map.Store(peer_id, &peer)
 	return nil
 }
 
@@ -117,7 +120,11 @@ func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error 
 		if err := stream.Send(resp); err != nil {
 			return err
 		}
-		s.AddNewPeer(peer_id, ip)
+		ip, consumer_port, err := net.SplitHostPort(ip)
+		if err != nil {
+			return err
+		}
+		s.AddNewPeer(peer_id, ip, consumer_port)
 		// It'll still keep sending peer_id and peer node can choose to ignore it
 		for {
 			select {
@@ -150,7 +157,7 @@ func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
 		if err != nil {
 			return err
 		}
-		expected_ip := node.GetPeerIP()
+		expected_ip := node.GetPeerHostConsumer()
 		if ip != expected_ip {
 			return MarketServerError(fmt.Sprintf("Peer provided ID %s and had IP %s, but saved and expected peer IP is %s", peer_id, ip, expected_ip))
 		}
@@ -201,7 +208,7 @@ func (s *MarketServer) DiscoverPeers(ctx context.Context, req *proto.DiscoverPee
 	if err != nil {
 		return nil, err
 	}
-	peers := make([]string, len(peer_id_list))
+	peers := make([]string, 0)
 	for _, peer_id := range peer_id_list {
 		// NOTE: Filtering for peers that are still connected
 		if val, err := s.getPeerNode(peer_id); val != nil && err == nil {

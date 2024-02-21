@@ -16,7 +16,10 @@ import (
 
 const YOUR_FILE_HERE = "go.sum"
 
-var addr = flag.String("addr", "localhost:6699", "the address to connect to")
+var (
+	addr          = flag.String("addr", "localhost:6699", "the address to connect to")
+	producer_port = flag.String("producer_port", "8999", "the producer port to listen on")
+)
 
 func main() {
 	flag.Parse()
@@ -63,7 +66,7 @@ func main() {
 	}
 	uploader.Send(&proto.UploadFileRequest{
 		PeerId:       peer_id,
-		ProducerPort: "8999",
+		ProducerPort: *producer_port,
 	})
 	file, err := os.Open(YOUR_FILE_HERE)
 	if err != nil {
