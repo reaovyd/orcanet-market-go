@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	Market_JoinNetwork_FullMethodName   = "/market.Market/JoinNetwork"
+	Market_UploadFile_FullMethodName    = "/market.Market/UploadFile"
 	Market_DiscoverPeers_FullMethodName = "/market.Market/DiscoverPeers"
 )
 
@@ -29,6 +30,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MarketClient interface {
 	JoinNetwork(ctx context.Context, opts ...grpc.CallOption) (Market_JoinNetworkClient, error)
+	UploadFile(ctx context.Context, opts ...grpc.CallOption) (Market_UploadFileClient, error)
 	DiscoverPeers(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
@@ -71,6 +73,40 @@ func (x *marketJoinNetworkClient) Recv() (*KeepAliveResponse, error) {
 	return m, nil
 }
 
+func (c *marketClient) UploadFile(ctx context.Context, opts ...grpc.CallOption) (Market_UploadFileClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Market_ServiceDesc.Streams[1], Market_UploadFile_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &marketUploadFileClient{stream}
+	return x, nil
+}
+
+type Market_UploadFileClient interface {
+	Send(*UploadFileRequest) error
+	CloseAndRecv() (*UploadFileResponse, error)
+	grpc.ClientStream
+}
+
+type marketUploadFileClient struct {
+	grpc.ClientStream
+}
+
+func (x *marketUploadFileClient) Send(m *UploadFileRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *marketUploadFileClient) CloseAndRecv() (*UploadFileResponse, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(UploadFileResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *marketClient) DiscoverPeers(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, Market_DiscoverPeers_FullMethodName, in, out, opts...)
@@ -85,6 +121,7 @@ func (c *marketClient) DiscoverPeers(ctx context.Context, in *emptypb.Empty, opt
 // for forward compatibility
 type MarketServer interface {
 	JoinNetwork(Market_JoinNetworkServer) error
+	UploadFile(Market_UploadFileServer) error
 	DiscoverPeers(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	mustEmbedUnimplementedMarketServer()
 }
@@ -95,6 +132,9 @@ type UnimplementedMarketServer struct {
 
 func (UnimplementedMarketServer) JoinNetwork(Market_JoinNetworkServer) error {
 	return status.Errorf(codes.Unimplemented, "method JoinNetwork not implemented")
+}
+func (UnimplementedMarketServer) UploadFile(Market_UploadFileServer) error {
+	return status.Errorf(codes.Unimplemented, "method UploadFile not implemented")
 }
 func (UnimplementedMarketServer) DiscoverPeers(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DiscoverPeers not implemented")
@@ -138,6 +178,32 @@ func (x *marketJoinNetworkServer) Recv() (*KeepAliveRequest, error) {
 	return m, nil
 }
 
+func _Market_UploadFile_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(MarketServer).UploadFile(&marketUploadFileServer{stream})
+}
+
+type Market_UploadFileServer interface {
+	SendAndClose(*UploadFileResponse) error
+	Recv() (*UploadFileRequest, error)
+	grpc.ServerStream
+}
+
+type marketUploadFileServer struct {
+	grpc.ServerStream
+}
+
+func (x *marketUploadFileServer) SendAndClose(m *UploadFileResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *marketUploadFileServer) Recv() (*UploadFileRequest, error) {
+	m := new(UploadFileRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func _Market_DiscoverPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
@@ -173,6 +239,11 @@ var Market_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "JoinNetwork",
 			Handler:       _Market_JoinNetwork_Handler,
 			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "UploadFile",
+			Handler:       _Market_UploadFile_Handler,
 			ClientStreams: true,
 		},
 	},
