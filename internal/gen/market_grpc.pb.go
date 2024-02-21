@@ -20,14 +20,16 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Market_RegisterPeerNode_FullMethodName = "/market.Market/RegisterPeerNode"
+	Market_JoinNetwork_FullMethodName   = "/market.Market/JoinNetwork"
+	Market_DiscoverPeers_FullMethodName = "/market.Market/DiscoverPeers"
 )
 
 // MarketClient is the client API for Market service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MarketClient interface {
-	RegisterPeerNode(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RegisterPeerReply, error)
+	JoinNetwork(ctx context.Context, opts ...grpc.CallOption) (Market_JoinNetworkClient, error)
+	DiscoverPeers(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type marketClient struct {
@@ -38,9 +40,40 @@ func NewMarketClient(cc grpc.ClientConnInterface) MarketClient {
 	return &marketClient{cc}
 }
 
-func (c *marketClient) RegisterPeerNode(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RegisterPeerReply, error) {
-	out := new(RegisterPeerReply)
-	err := c.cc.Invoke(ctx, Market_RegisterPeerNode_FullMethodName, in, out, opts...)
+func (c *marketClient) JoinNetwork(ctx context.Context, opts ...grpc.CallOption) (Market_JoinNetworkClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Market_ServiceDesc.Streams[0], Market_JoinNetwork_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &marketJoinNetworkClient{stream}
+	return x, nil
+}
+
+type Market_JoinNetworkClient interface {
+	Send(*KeepAliveRequest) error
+	Recv() (*KeepAliveResponse, error)
+	grpc.ClientStream
+}
+
+type marketJoinNetworkClient struct {
+	grpc.ClientStream
+}
+
+func (x *marketJoinNetworkClient) Send(m *KeepAliveRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *marketJoinNetworkClient) Recv() (*KeepAliveResponse, error) {
+	m := new(KeepAliveResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *marketClient) DiscoverPeers(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, Market_DiscoverPeers_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +84,8 @@ func (c *marketClient) RegisterPeerNode(ctx context.Context, in *emptypb.Empty, 
 // All implementations must embed UnimplementedMarketServer
 // for forward compatibility
 type MarketServer interface {
-	RegisterPeerNode(context.Context, *emptypb.Empty) (*RegisterPeerReply, error)
+	JoinNetwork(Market_JoinNetworkServer) error
+	DiscoverPeers(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	mustEmbedUnimplementedMarketServer()
 }
 
@@ -59,8 +93,11 @@ type MarketServer interface {
 type UnimplementedMarketServer struct {
 }
 
-func (UnimplementedMarketServer) RegisterPeerNode(context.Context, *emptypb.Empty) (*RegisterPeerReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RegisterPeerNode not implemented")
+func (UnimplementedMarketServer) JoinNetwork(Market_JoinNetworkServer) error {
+	return status.Errorf(codes.Unimplemented, "method JoinNetwork not implemented")
+}
+func (UnimplementedMarketServer) DiscoverPeers(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DiscoverPeers not implemented")
 }
 func (UnimplementedMarketServer) mustEmbedUnimplementedMarketServer() {}
 
@@ -75,20 +112,46 @@ func RegisterMarketServer(s grpc.ServiceRegistrar, srv MarketServer) {
 	s.RegisterService(&Market_ServiceDesc, srv)
 }
 
-func _Market_RegisterPeerNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Market_JoinNetwork_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(MarketServer).JoinNetwork(&marketJoinNetworkServer{stream})
+}
+
+type Market_JoinNetworkServer interface {
+	Send(*KeepAliveResponse) error
+	Recv() (*KeepAliveRequest, error)
+	grpc.ServerStream
+}
+
+type marketJoinNetworkServer struct {
+	grpc.ServerStream
+}
+
+func (x *marketJoinNetworkServer) Send(m *KeepAliveResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *marketJoinNetworkServer) Recv() (*KeepAliveRequest, error) {
+	m := new(KeepAliveRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _Market_DiscoverPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MarketServer).RegisterPeerNode(ctx, in)
+		return srv.(MarketServer).DiscoverPeers(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Market_RegisterPeerNode_FullMethodName,
+		FullMethod: Market_DiscoverPeers_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MarketServer).RegisterPeerNode(ctx, req.(*emptypb.Empty))
+		return srv.(MarketServer).DiscoverPeers(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -101,10 +164,17 @@ var Market_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*MarketServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "RegisterPeerNode",
-			Handler:    _Market_RegisterPeerNode_Handler,
+			MethodName: "DiscoverPeers",
+			Handler:    _Market_DiscoverPeers_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "JoinNetwork",
+			Handler:       _Market_JoinNetwork_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "internal/gen/market.proto",
 }

@@ -6,10 +6,15 @@ option go_package = "github.com/reaovyd/orcanet-market-go/internal/gen/proto";
 package market;
 
 service Market {
-  rpc RegisterPeerNode (google.protobuf.Empty) returns (RegisterPeerReply);
+  rpc JoinNetwork (stream KeepAliveRequest) returns (stream KeepAliveResponse);
+  rpc DiscoverPeers (google.protobuf.Empty) returns (google.protobuf.Empty);
 }
 
-message RegisterPeerReply {
+message JoinNetworkReply {
   string peer_id = 1;
 }
 
+message KeepAliveRequest {}
+message KeepAliveResponse {
+  string peer_id = 1;
+}
