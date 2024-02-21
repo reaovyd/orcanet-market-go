@@ -54,11 +54,13 @@ func (s *MarketServer) GetPeer(peer_id string) any {
 }
 
 // Runs on different goroutines; need synchronization on map
+// Might need something for rejoins since disconnects would immediately invalidate
+// anything the peer uploaded
 func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error {
 	p, ok := peer.FromContext(stream.Context())
 	if ok {
 		ip := p.Addr.String()
-		peer_id, err := GeneratePeerNodeID(p.Addr.String())
+		peer_id, err := generatePeerNodeID(p.Addr.String())
 		if err != nil {
 			return MarketServerError(fmt.Sprint("Failed to join the market server: ", err))
 		}

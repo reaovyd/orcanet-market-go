@@ -61,12 +61,14 @@ func (fpm *filePeerMap) removePeerByHash(filehash string, peer string) (string, 
 		return "", filePeerMapError("Object found to be null")
 	}
 	fpm.lock.Lock()
-	_, ok := fpm.fpeer_map[filehash]
-	if !ok {
-		fpm.lock.Unlock()
-		return "", filePeerMapError("Could not find the associated filehash")
-	}
+	// if nil it's an no-op
 	delete(fpm.fpeer_map[filehash], peer)
+	// _, ok := fpm.fpeer_map[filehash]
+	// if !ok {
+	// 	fpm.lock.Unlock()
+	// 	return "", filePeerMapError("Could not find the associated filehash")
+	// }
+	// delete(fpm.fpeer_map[filehash], peer)
 	fpm.lock.Unlock()
 
 	return peer, nil

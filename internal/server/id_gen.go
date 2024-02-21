@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func GeneratePeerNodeID(ip_addr string) (string, error) {
+func generatePeerNodeID(ip_addr string) (string, error) {
 	uuid, err := uuid.NewUUID()
 	if err != nil {
 		return "", err
