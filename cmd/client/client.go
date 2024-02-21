@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -80,6 +81,7 @@ func main() {
 		}
 	}()
 	peer_id := <-peer_id_chan
+	fmt.Println(peer_id)
 	uploader, err := c.UploadFile(context.Background())
 	if err != nil {
 		log.Fatal(err)

@@ -104,14 +104,24 @@ func (s *MarketServer) DeleteExistingPeer(peer_id string) {
 func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error {
 	p, ok := google_peer.FromContext(stream.Context())
 	if ok {
+		var peer_id string
 		ip := p.Addr.String()
-		peer_id, err := generatePeerNodeID(p.Addr.String())
+		init_req, err := stream.Recv()
 		if err != nil {
 			return MarketServerError(fmt.Sprint("Failed to join the market server: ", err))
 		}
+		switch init_req.JoinRequestType {
+		case proto.JoinRequestType_JOINER:
+			fmt.Println("Joiner")
+			peer_id, err = generatePeerNodeID(p.Addr.String())
+		case proto.JoinRequestType_REJOINER:
+			fmt.Println("REJoiner")
+			peer_id, err = init_req.GetPeerId(), nil
+		}
 
-		ticker := time.NewTicker(s.heartbeat)
-		defer ticker.Stop()
+		if err != nil {
+			return MarketServerError(fmt.Sprint("Failed to join the market server: ", err))
+		}
 		resp := &proto.KeepAliveResponse{
 			PeerId: peer_id,
 		}
@@ -124,8 +134,18 @@ func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error 
 		if err != nil {
 			return err
 		}
-		s.AddNewPeer(peer_id, ip, consumer_port)
+		if err = s.AddNewPeer(peer_id, ip, consumer_port); err != nil {
+			return err
+		}
+		if init_req.JoinRequestType == proto.JoinRequestType_REJOINER {
+			if err = s.UpdateExistingPeerProducerPort(peer_id, init_req.GetProducerPort()); err != nil {
+				return err
+			}
+		}
 		// It'll still keep sending peer_id and peer node can choose to ignore it
+
+		ticker := time.NewTicker(s.heartbeat)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
