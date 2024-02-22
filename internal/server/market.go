@@ -112,10 +112,8 @@ func (s *MarketServer) JoinNetwork(stream proto.Market_JoinNetworkServer) error 
 		}
 		switch init_req.JoinRequestType {
 		case proto.JoinRequestType_JOINER:
-			fmt.Println("Joiner")
 			peer_id, err = generatePeerNodeID(p.Addr.String())
 		case proto.JoinRequestType_REJOINER:
-			fmt.Println("REJoiner")
 			peer_id, err = init_req.GetPeerId(), nil
 		}
 
@@ -207,14 +205,6 @@ func (s *MarketServer) UploadFile(stream proto.Market_UploadFileServer) error {
 		node.SetProducerPort(producer_port)
 		s.file_peer_map.addFileHash(filehash_out, peer_id)
 		node.AddFile(filehash_out)
-		// producer_port := req.GetProducerPort()
-		// host, _, err := net.SplitHostPort(ip)
-		// if err != nil {
-		// 	return err
-		// }
-		// producer_ip := net.JoinHostPort(host, producer_port)
-		// filehash_out := fmt.Sprintf("%x", filehash)
-		// s.file_peer_map.addFileHash(filehash_out, producer_ip)
 		return stream.SendAndClose(&proto.UploadFileResponse{
 			Filehash: filehash_out,
 		})

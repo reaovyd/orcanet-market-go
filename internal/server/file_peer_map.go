@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -59,6 +60,7 @@ func (fpm *filePeerMap) addFileHash(filehash string, peer string) error {
 		fpm.fpeer_map[filehash] = make(hashset)
 	}
 	fpm.fpeer_map[filehash][peer] = true
+	fmt.Println(fpm.fpeer_map[filehash])
 	fpm.lock.Unlock()
 	return nil
 }
