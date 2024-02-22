@@ -73,14 +73,15 @@ func (s *MarketServer) UpdateExistingPeerProducerPort(peer_id, producer_port str
 	return nil
 }
 
-func (s *MarketServer) UpdateExistingPeerConsumerPort(peer_id, consumer_port string) error {
-	val, err := s.getPeerNode(peer_id)
-	if err != nil {
-		return err
-	}
-	val.SetConsumerPort(consumer_port)
-	return nil
-}
+// NOTE: this is probably not needed at all
+// func (s *MarketServer) UpdateExistingPeerConsumerPort(peer_id, consumer_port string) error {
+// 	val, err := s.getPeerNode(peer_id)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	val.SetConsumerPort(consumer_port)
+// 	return nil
+// }
 
 func (s *MarketServer) DeleteExistingPeer(peer_id string) {
 	// NOTE: Should we really even remove the peers from the owned files inside file_peer_map?

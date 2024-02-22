@@ -1,1 +1,4 @@
 bin/
+
+# Proto-generated files
+*.pb.go
